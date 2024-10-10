@@ -68,30 +68,45 @@ def get_cocktail_suggestions(image: bytes) -> Dict:
 
 def main():
     st.title("🍸 Neighborhood Mixologist")
-    st.write("Upload a photo of your liquor bottles, and I'll suggest cocktail recipes!")
 
-    # File uploader
-    uploaded_file = st.file_uploader("Take a photo or choose an image file", type=["jpg", "jpeg", "png"])
+    # Create a toggle in the sidebar
+    use_camera = st.sidebar.toggle("Use Camera", value=False)
 
-    if uploaded_file is not None:
-        # Display the uploaded image
-        image = Image.open(uploaded_file)
-        st.image(image, caption="Uploaded Image", use_column_width=True)
+    if use_camera:
+        # Camera input
+        st.write("Take a photo of your liquor bottles, and I'll suggest cocktail recipes!")
+        camera_photo = st.camera_input("Take a photo")
         
-        # Add a button to trigger analysis
-        if st.button("Analyze Photo"):
-            with st.spinner("Analyzing your bottles and crafting suggestions..."):
-                # Convert image to bytes
-                img_byte_arr = io.BytesIO()
-                image.save(img_byte_arr, format=image.format)
-                img_byte_arr = img_byte_arr.getvalue()
-                
-                # Get cocktail suggestions
-                suggestions = get_cocktail_suggestions(img_byte_arr)
-                
-                if suggestions:
-                    st.markdown("## 📋 Results")
-                    st.markdown(suggestions)
+        if camera_photo is not None:
+            # Display the captured image
+            image = Image.open(camera_photo)
+            st.image(image, caption="Captured photo")
+            
+    else:
+        st.write("Upload a photo of your liquor bottles, and I'll suggest cocktail recipes!")
+
+        # File uploader
+        uploaded_file = st.file_uploader("Choose an image file", type=["jpg", "jpeg", "png"])
+
+        if uploaded_file is not None:
+            # Display the uploaded image
+            image = Image.open(uploaded_file)
+            st.image(image, caption="Uploaded Image", use_column_width=True)
+
+    # Add a button to trigger analysis
+    if st.button("Analyze Photo"):
+        with st.spinner("Analyzing your bottles and crafting suggestions..."):
+            # Convert image to bytes
+            img_byte_arr = io.BytesIO()
+            image.save(img_byte_arr, format=image.format)
+            img_byte_arr = img_byte_arr.getvalue()
+            
+            # Get cocktail suggestions
+            suggestions = get_cocktail_suggestions(img_byte_arr)
+            
+            if suggestions:
+                st.markdown("## 📋 Results")
+                st.markdown(suggestions)
 
 if __name__ == "__main__":
     main()
