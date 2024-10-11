@@ -4,7 +4,6 @@ import base64
 from PIL import Image
 import io
 from typing import List, Dict, Optional
-import os
 
 # Constants
 TITLE = "🍸 Neighborhood Mixologist"
