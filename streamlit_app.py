@@ -3,7 +3,7 @@ from openai import OpenAI
 import base64
 from PIL import Image
 import io
-from typing import List, Dict, Optional
+from typing import Optional
 
 # Constants
 TITLE = "🍸 Neighborhood Mixologist"
@@ -26,23 +26,19 @@ Format your response as follows:
 Only suggest cocktails that can be made primarily with the ingredients visible 
 in the image. You may assume basic mixers (juice, soda) are available."""
 
-# Initialize OpenAI client
-@st.cache_resource
-def get_openai_client():
-    return OpenAI(api_key=st.secrets["openai"]["api_key"])
-
-def get_cocktail_suggestions(image: bytes) -> Optional[str]:
+# Move OpenAI client initialization inside main function
+def get_cocktail_suggestions(client: OpenAI, image: bytes) -> Optional[str]:
     """
     Analyze image and get cocktail suggestions using OpenAI's API.
     
     Args:
+        client (OpenAI): The OpenAI client
         image (bytes): The image data in bytes
     
     Returns:
         Optional[str]: Cocktail suggestions or None if an error occurs
     """
     try:
-        client = get_openai_client()
         base64_image = base64.b64encode(image).decode('utf-8')
         
         response = client.chat.completions.create(
@@ -76,15 +72,7 @@ def get_cocktail_suggestions(image: bytes) -> Optional[str]:
         return None
 
 def process_image(image_data) -> Optional[bytes]:
-    """
-    Process the image data and return it in bytes format.
-    
-    Args:
-        image_data: Either a FileUploader object or camera input
-    
-    Returns:
-        Optional[bytes]: Processed image in bytes or None if processing fails
-    """
+    """Process the image data and return it in bytes format."""
     try:
         image = Image.open(image_data)
         img_byte_arr = io.BytesIO()
@@ -98,6 +86,9 @@ def main():
     st.set_page_config(page_title=TITLE, page_icon="🍸")
     st.title(TITLE)
     
+    # Initialize OpenAI client inside main function
+    client = OpenAI(api_key=st.secrets["openai"]["api_key"])
+    
     # Sidebar
     use_camera = st.sidebar.toggle("Use Camera", value=False)
     
@@ -110,17 +101,13 @@ def main():
         image_input = st.file_uploader("Choose an image file", type=["jpg", "jpeg", "png"])
     
     if image_input:
-        # Display the image
         st.image(image_input, caption="Captured/Uploaded Image", use_column_width=True)
         
-        # Add analyze button
         if st.button("Analyze Photo"):
             with st.spinner("Analyzing your bottles and crafting suggestions..."):
-                # Process image
                 img_bytes = process_image(image_input)
                 if img_bytes:
-                    # Get and display suggestions
-                    suggestions = get_cocktail_suggestions(img_bytes)
+                    suggestions = get_cocktail_suggestions(client, img_bytes)
                     if suggestions:
                         st.markdown("## 📋 Results")
                         st.markdown(suggestions)
