@@ -11,7 +11,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # Initialize OpenAI client
-client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+client = OpenAI(api_key=st.secrets["openai"]["api_key"])
 
 # Streamlit page config
 st.set_page_config(page_title="Neighborhood Mixologist", page_icon="🍸")
