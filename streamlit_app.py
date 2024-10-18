@@ -80,7 +80,6 @@ def get_cocktail_suggestions(client: OpenAI, image: bytes) -> Optional[Dict]:
         )
         
         content = response.choices[0].message.content
-        st.write("API Response:", content)  # Debug: Print raw API response
         
         # Remove Markdown code block syntax if present
         content = re.sub(r'^```json\s*|\s*```$', '', content.strip())
@@ -135,6 +134,12 @@ def main():
     st.set_page_config(page_title=TITLE, page_icon="🍸")
     st.title(TITLE)
     
+    # Initialize session state variables if they don't exist
+    if 'suggestions' not in st.session_state:
+        st.session_state.suggestions = None
+    if 'selected_cocktail' not in st.session_state:
+        st.session_state.selected_cocktail = None
+    
     # Initialize OpenAI client inside main function
     client = OpenAI(api_key=st.secrets["openai"]["api_key"])
     
@@ -158,20 +163,29 @@ def main():
                 if img_bytes:
                     suggestions = get_cocktail_suggestions(client, img_bytes)
                     if suggestions:
-                        st.session_state.suggestions = suggestions  # Store suggestions in session state
-                        st.markdown("## 📋 Identified Items")
-                        for i, item in enumerate(suggestions['identified_items'], 1):
-                            st.write(f"{i}. {item['name']} ({item['type']})")
-                            if item['notes']:
-                                st.write(f"   Note: {item['notes']}")
-                        
-                        st.markdown("## 🍹 Suggested Cocktails")
-                        for cocktail in suggestions['cocktails']:
-                            if st.button(f"{cocktail['name']} - {cocktail['short_description']}", key=cocktail['name']):
-                                st.session_state.selected_cocktail = cocktail  # Store selected cocktail in session state
+                        st.session_state.suggestions = suggestions
+                        st.session_state.selected_cocktail = None
+
+    # Display identified items and cocktail buttons only if suggestions exist
+    if st.session_state.suggestions is not None and 'identified_items' in st.session_state.suggestions:
+        st.markdown("## 📋 Identified Items")
+        for i, item in enumerate(st.session_state.suggestions['identified_items'], 1):
+            st.write(f"{i}. {item['name']} ({item['type']})")
+            if item['notes']:
+                st.write(f"   Note: {item['notes']}")
+        
+        if 'cocktails' in st.session_state.suggestions:
+            st.markdown("## 🍹 Suggested Cocktails")
+            for cocktail in st.session_state.suggestions['cocktails']:
+                if st.button(f"{cocktail['name']} - {cocktail['short_description']}", key=cocktail['name']):
+                    st.session_state.selected_cocktail = cocktail
+
+    # Debug statements
+    # st.write("Debug: Session state contents:", st.session_state)
+    # st.write("Debug: Selected cocktail:", st.session_state.selected_cocktail)
 
     # Display selected cocktail details
-    if 'selected_cocktail' in st.session_state:
+    if st.session_state.selected_cocktail is not None:
         st.markdown("## 🍸 Selected Cocktail Details")
         display_cocktail_details(st.session_state.selected_cocktail)
 
