@@ -34,7 +34,8 @@ Format your response as a JSON string with the following structure:
                 {
                     "name": "재료명",
                     "amount": "30ml",
-                    "available": true/false
+                    "available": true/false,
+                    "price_range": "없는 재료의 경우 대략적인 가격대 (예: ₩15,000~25,000)"
                 },
                 ...
             ],
@@ -46,44 +47,66 @@ Format your response as a JSON string with the following structure:
 }"""
 
 def get_cocktail_suggestions(client: OpenAI, image: bytes) -> Optional[Dict]:
-    """
-    Analyze image and get cocktail suggestions using OpenAI's API.
+    """Analyze image and get cocktail suggestions using OpenAI's API.
+    
+    Args:
+        client: OpenAI client instance
+        image: Image bytes to analyze
+        
+    Returns:
+        Optional[Dict]: Parsed JSON response or None if error occurs
     """
     try:
         base64_image = base64.b64encode(image).decode('utf-8')
         
+        messages = [
+            {"role": "system", "content": SYSTEM_PROMPT},
+            {
+                "role": "user",
+                "content": [
+                    {
+                        "type": "text",
+                        "text": "이 이미지에서 식별된 항목들을 분석하고 칵테일 레시피를 추천해주세요."
+                    },
+                    {
+                        "type": "image_url",
+                        "image_url": {"url": f"data:image/jpeg;base64,{base64_image}"}
+                    }
+                ]
+            }
+        ]
+        
         response = client.chat.completions.create(
             model=MODEL_NAME,
-            messages=[
-                {"role": "system", "content": SYSTEM_PROMPT},
-                {
-                    "role": "user",
-                    "content": [
-                        {"type": "text", "text": "이 이미지에서 식별된 항목들을 분석하고 칵테일 레시피를 추천해주세요."},
-                        {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{base64_image}"}}
-                    ]
-                }
-            ],
+            messages=messages,
             max_tokens=MAX_TOKENS
         )
         
-        content = response.choices[0].message.content
+        return parse_api_response(response.choices[0].message.content)
         
-        # Clean up the response content
-        content = re.sub(r'^```json\s*|\s*```$', '', content.strip())
-        content = content.replace('\n', '').replace('\r', '').strip()
-        
-        try:
-            parsed_json = json.loads(content)
-            return parsed_json
-        
-        except json.JSONDecodeError as json_error:
-            st.error(f"JSON 파싱 오류: {str(json_error)}")
-            st.write("파싱 실패한 내용:", content)
-            return None
-            
     except Exception as e:
         st.error(f"OpenAI API 통신 오류: {str(e)}")
+        return None
+
+def parse_api_response(content: str) -> Optional[Dict]:
+    """Parse and clean API response content.
+    
+    Args:
+        content (str): Raw API response content
+        
+    Returns:
+        Optional[Dict]: Parsed JSON or None if parsing fails
+    """
+    try:
+        # Clean up the response content
+        cleaned_content = re.sub(r'^```json\s*|\s*```$', '', content.strip())
+        cleaned_content = cleaned_content.replace('\n', '').replace('\r', '').strip()
+        
+        return json.loads(cleaned_content)
+        
+    except json.JSONDecodeError as json_error:
+        st.error(f"JSON 파싱 오류: {str(json_error)}")
+        st.write("파싱 실패한 내용:", content)
         return None
 
 def process_image(image_data) -> Optional[bytes]:
@@ -98,27 +121,57 @@ def process_image(image_data) -> Optional[bytes]:
         return None
 
 def display_cocktail_details(cocktail: Dict):
-    """칵테일 상세 정보를 표시합니다."""
-    # Create a clean header with emoji
-    st.markdown(f"### 🍸 {cocktail['name']}")
+    """Display detailed cocktail information in a clean, organized format.
     
-    # Display category and description in a clean, simple format
-    st.markdown(f"{cocktail['category']} | *{cocktail['short_description']}*")
+    Args:
+        cocktail (Dict): Dictionary containing cocktail details including name,
+                        category, description, ingredients, and instructions.
+    """
+    # Header section
+    st.markdown(f"""
+        ### 🍸 {cocktail['name']}
+        {cocktail['category']} | *{cocktail['short_description']}*
+        #### 📝 재료
+    """)
     
-    # Display ingredients in a clean list
-    st.markdown("#### 📝 재료")
+    # Ingredients section with styled container
+    ingredients_container = st.container()
+    with ingredients_container:
+        for ingredient in cocktail['ingredients']:
+            render_ingredient_row(ingredient)
     
-    for ingredient in cocktail['ingredients']:
-        status = "✅" if ingredient['available'] else "❌"
-        st.markdown(f"<div style='display: flex; align-items: center; margin-bottom: 5px;'>"
-                    f"<span style='width: 30px; text-align: center;'>{status}</span>"
-                    f"<span style='width: 80px;'>{ingredient['amount']}</span>"
-                    f"<span>{ingredient['name']}</span>"
-                    f"</div>", unsafe_allow_html=True)
-
-    # Display instructions in a numbered list
+    # Instructions section
     st.markdown("#### 🥃 제조 방법")
-    for i, step in enumerate(cocktail['instructions'], 1):
+    render_instructions(cocktail['instructions'])
+
+def render_ingredient_row(ingredient: Dict):
+    """Render a single ingredient row with status, amount, name, and optional price.
+    
+    Args:
+        ingredient (Dict): Dictionary containing ingredient details.
+    """
+    status = "✅" if ingredient['available'] else "❌"
+    price_info = (f"<span style='margin-left: 10px; color: #666;'>"
+                 f"💰 {ingredient['price_range']}</span>"
+                 if not ingredient['available'] and 'price_range' in ingredient
+                 else "")
+    
+    ingredient_html = f"""
+        <div style='display: flex; align-items: center; margin-bottom: 5px;'>
+            <span style='width: 30px; text-align: center;'>{status}</span>
+            <span style='width: 80px;'>{ingredient['amount']}</span>
+            <span>{ingredient['name']}{price_info}</span>
+        </div>
+    """
+    st.markdown(ingredient_html, unsafe_allow_html=True)
+
+def render_instructions(instructions: list):
+    """Render cooking instructions as a numbered list.
+    
+    Args:
+        instructions (list): List of instruction steps.
+    """
+    for i, step in enumerate(instructions, 1):
         st.markdown(f"{i}. {step}")
 
 def main():
