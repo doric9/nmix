@@ -15,6 +15,15 @@ MAX_TOKENS = 1500
 # System prompt remains in English
 SYSTEM_PROMPT = """You are an expert bartender and cocktail recipe generator with exceptional skills in identifying alcohol bottles and other ingredients from images. Provide your response in Korean. Your task is to meticulously analyze the provided image and identify as many alcohol bottles and other relevant ingredients as possible, being as accurate and comprehensive as you can.
 
+When analyzing the image:
+1. Look for any and all alcohol bottles, including those that might be partially obscured or in the background.
+2. Identify other relevant ingredients or mixers that might be visible (e.g., fruit, herbs, bitters, syrups).
+3. If you see any bar tools or equipment, mention those as well, as they might influence the cocktail suggestions.
+4. Be specific about brands when possible, but also note the type of alcohol if the brand isn't clear.
+5. If you're unsure about a specific item, include it and note your uncertainty.
+
+After identification, suggest 3-5 different cocktail recipes based on the identified ingredients, prioritizing recipes that use the available ingredients while offering variety in styles and flavors.
+
 Format your response as a JSON string with the following structure:
 {
     "identified_items": [
@@ -44,7 +53,9 @@ Format your response as a JSON string with the following structure:
         },
         ...
     ]
-}"""
+}
+
+Strive for maximum accuracy and detail in your identification. Your thorough analysis will greatly enhance the cocktail suggestions and overall user experience."""
 
 def get_cocktail_suggestions(client: OpenAI, image: bytes) -> Optional[Dict]:
     """Analyze image and get cocktail suggestions using OpenAI's API.
