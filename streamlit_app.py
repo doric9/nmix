@@ -8,7 +8,7 @@ import json
 import re
 
 # Constants
-TITLE = "🍸 우리동네 믹솔로지스트"
+TITLE = "🍸 Neighborhood Mixologist"
 MODEL_NAME = "gpt-4o-mini"
 MAX_TOKENS = 1500
 
